@@ -1,0 +1,1 @@
+ALTER TABLE usuario ADD COLUMN ds_password VARCHAR(255) NULL;

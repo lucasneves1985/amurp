@@ -1,0 +1,49 @@
+# ===== Banco, dumps e arquivos sensíveis =====
+estrutura.txt
+*.sql.gz
+*.dump
+*.bak
+/db/dumps/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+application-local.yml
+application-secrets.yml
+cp.txt
+**/cp.txt
+
+# Se o DDL for usado pelos testes (Testcontainers), versione uma cópia
+# sanitizada, sem DEFINER e sem dados, e descomente a linha abaixo:
+# !backend/src/test/resources/schema.sql
+
+# ===== Backend (Maven / Spring Boot) =====
+target/
+*.class
+*.log
+HELP.md
+!.mvn/wrapper/maven-wrapper.jar
+
+# ===== Frontend (Vue 3 / Vite) =====
+node_modules/
+dist/
+coverage/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+amurp-ui/*.tsbuildinfo
+
+# ===== IDEs e sistema operacional =====
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.settings/
+.project
+.classpath
+.factorypath
+.DS_Store
+Thumbs.db
