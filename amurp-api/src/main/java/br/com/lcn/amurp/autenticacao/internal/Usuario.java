@@ -5,12 +5,17 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
+
 // ds_senha NÃO é mapeada. Continua no banco até decisão sobre o Delphi.
 @Entity
 @Table(name = "usuario")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 class Usuario {
+
+    // Confirmado: in_status = 1 é ativo.
+    static final int IN_STATUS_ATIVO = 1;
 
     @Id
     @Column(name = "id_usuario")
@@ -30,4 +35,13 @@ class Usuario {
 
     @Column(name = "in_senha_provisoria", nullable = false)
     private Integer inSenhaProvisoria;
+
+    boolean isAtivo() {
+        return Objects.equals(inStatus, IN_STATUS_ATIVO);
+    }
+
+    void trocarSenha(String hash) {
+        this.dsPassword = hash;
+        this.inSenhaProvisoria = 0;
+    }
 }
