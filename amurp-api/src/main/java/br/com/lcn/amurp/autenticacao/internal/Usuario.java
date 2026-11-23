@@ -7,19 +7,19 @@ import lombok.NoArgsConstructor;
 
 import java.util.Objects;
 
-// ds_senha NÃO é mapeada. Continua no banco até decisão sobre o Delphi.
+// ds_senha é intencionalmente NÃO mapeada. Será removida do banco após a migração.
 @Entity
 @Table(name = "usuario")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-class Usuario {
+public class Usuario {
 
     // Confirmado: in_status = 1 é ativo.
-    static final int IN_STATUS_ATIVO = 1;
+    private static final int IN_STATUS_ATIVO = 1;
 
     @Id
     @Column(name = "id_usuario")
-    private Integer idUsuario;
+    private Integer idUsuario; // sem @GeneratedValue: a coluna não é AUTO_INCREMENT
 
     @Column(name = "ds_login", nullable = false, length = 30)
     private String dsLogin;
@@ -36,11 +36,15 @@ class Usuario {
     @Column(name = "in_senha_provisoria", nullable = false)
     private Integer inSenhaProvisoria;
 
-    boolean isAtivo() {
+    public boolean isAtivo() {
         return Objects.equals(inStatus, IN_STATUS_ATIVO);
     }
 
-    void trocarSenha(String hash) {
+    public boolean isSenhaProvisoria() {
+        return Objects.equals(inSenhaProvisoria, 1);
+    }
+
+    public void trocarSenha(String hash) {
         this.dsPassword = hash;
         this.inSenhaProvisoria = 0;
     }

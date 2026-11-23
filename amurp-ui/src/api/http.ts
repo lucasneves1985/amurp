@@ -22,7 +22,10 @@ export async function requisitar<T>(caminho: string, init: RequestInit = {}): Pr
 
   if (!resposta.ok) {
     // 401 com token presente: token expirado ou revogado. Encerra a sessão local.
-    if (resposta.status === 401 && token) encerrarSessao()
+    if (resposta.status === 401 && token) {
+      encerrarSessao()
+      window.location.assign('/login')
+    }
 
     let corpo: { detail?: string; traceId?: string } = {}
     try {

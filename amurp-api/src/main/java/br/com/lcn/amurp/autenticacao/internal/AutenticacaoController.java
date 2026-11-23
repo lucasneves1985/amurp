@@ -4,6 +4,7 @@ import br.com.lcn.amurp.autenticacao.LoginRequest;
 import br.com.lcn.amurp.autenticacao.TokenResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -20,8 +21,10 @@ public class AutenticacaoController {
     private final AutenticacaoService autenticacaoService;
 
     @PostMapping("/login")
-    public TokenResponse login(@Valid @RequestBody LoginRequest request) {
-        return autenticacaoService.autenticar(request.login(), request.senha());
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+        return autenticacaoService.autenticar(request.login(), request.senha())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).<TokenResponse>build());
     }
 
     @PostMapping("/trocar-senha")
@@ -33,7 +36,7 @@ public class AutenticacaoController {
                 request.novaSenha());
     }
 
-    // ATENÇÃO: não invalida o token. Ver seção "Logout" abaixo.
+    // Não invalida o token. Logout real depende de refresh token revogável (pendente).
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
         return ResponseEntity.noContent().build();

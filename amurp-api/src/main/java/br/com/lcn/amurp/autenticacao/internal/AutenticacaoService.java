@@ -1,67 +1,93 @@
 package br.com.lcn.amurp.autenticacao.internal;
 
 import br.com.lcn.amurp.autenticacao.TokenResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class AutenticacaoService {
 
-    // BCrypt considera só os primeiros 72 bytes da senha. Acima disso, a senha é truncada em silêncio.
+    // BCrypt considera só os primeiros 72 bytes. Acima disso a senha é truncada em silêncio.
     private static final int BCRYPT_MAX_BYTES = 72;
 
-    private final AuthenticationManager authenticationManager;
-    private final TokenService tokenService;
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
 
-    public TokenResponse autenticar(String login, String senha) {
-        Authentication auth = authenticationManager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated(login, senha));
-        return tokenService.gerar((UsuarioAutenticado) auth.getPrincipal());
+    // Hash de referência: equaliza o tempo quando o login não existe ou está inativo.
+    private final String hashReferencia;
+
+    AutenticacaoService(UsuarioRepository usuarios,
+                        PasswordEncoder passwordEncoder,
+                        TokenService tokenService) {
+        this.usuarios = usuarios;
+        this.passwordEncoder = passwordEncoder;
+        this.tokenService = tokenService;
+        this.hashReferencia = passwordEncoder.encode("referencia-sem-uso");
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TokenResponse> autenticar(String login, String senha) {
+        Optional<Usuario> encontrado = usuarios.findByDsLogin(login);
+
+        if (encontrado.isEmpty()
+                || !encontrado.get().isAtivo()
+                || encontrado.get().getDsPassword() == null) {
+            passwordEncoder.matches(senha, hashReferencia);
+            return Optional.empty();
+        }
+
+        Usuario usuario = encontrado.get();
+
+        if (!passwordEncoder.matches(senha, usuario.getDsPassword())) {
+            return Optional.empty();
+        }
+
+        return Optional.of(tokenService.gerar(paraAutenticado(usuario)));
     }
 
     @Transactional
     public TokenResponse trocarSenha(Integer idUsuario, String senhaAtual, String novaSenha) {
         Usuario usuario = usuarios.findById(idUsuario)
-                .orElseThrow(() -> new UsernameNotFoundException("usuário não encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
-        // Token emitido antes da inativação ainda é válido até expirar. Não permitir troca.
         if (!usuario.isAtivo()) {
-            throw new DisabledException("usuário inativo");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
 
         if (usuario.getDsPassword() == null
                 || !passwordEncoder.matches(senhaAtual, usuario.getDsPassword())) {
-            throw new SenhaException("Senha atual incorreta.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Senha atual incorreta.");
         }
 
         if (novaSenha.equals(senhaAtual)) {
-            throw new SenhaException("A nova senha deve ser diferente da atual.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A nova senha deve ser diferente da atual.");
         }
 
         if (novaSenha.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_BYTES) {
-            throw new SenhaException("A nova senha excede o limite de 72 bytes.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A nova senha excede o limite de 72 bytes.");
         }
 
         usuario.trocarSenha(passwordEncoder.encode(novaSenha));
 
-        // Token novo sem SENHA_PROVISORIA. O anterior mantém essa authority até expirar.
-        return tokenService.gerar(new UsuarioAutenticado(
+        // Token novo, sem SENHA_PROVISORIA. O token anterior mantém a authority até expirar.
+        return tokenService.gerar(paraAutenticado(usuario));
+    }
+
+    private UsuarioAutenticado paraAutenticado(Usuario usuario) {
+        return new UsuarioAutenticado(
                 usuario.getIdUsuario(),
                 usuario.getDsLogin(),
                 usuario.getDsPassword(),
-                true,
-                false));
+                usuario.isAtivo(),
+                usuario.isSenhaProvisoria());
     }
 }

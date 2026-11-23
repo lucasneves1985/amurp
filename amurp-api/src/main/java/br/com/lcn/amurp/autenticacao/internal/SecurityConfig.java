@@ -3,9 +3,6 @@ package br.com.lcn.amurp.autenticacao.internal;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -49,16 +46,7 @@ class SecurityConfig {
     }
 
     @Bean
-    AuthenticationManager authenticationManager(UsuarioDetailsService usuarioDetailsService,
-                                                PasswordEncoder passwordEncoder) {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(usuarioDetailsService);
-        provider.setPasswordEncoder(passwordEncoder);
-        return new ProviderManager(provider);
-    }
-
-    @Bean
     PasswordEncoder passwordEncoder() {
-        // Aceita {bcrypt}, que é o prefixo gravado pela V5.
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }

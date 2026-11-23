@@ -27,19 +27,30 @@ export function encerrarSessao(): void {
   authorities = []
 }
 
-// Decodifica o payload só para decidir a rota na interface.
-// Não verifica assinatura: quem decide acesso é sempre o backend.
-function lerAuthorities(jwt: string): string[] {
+function lerPayload(jwt: string): Record<string, unknown> {
   try {
-    const partes = jwt.split('.')
-    const payloadB64 = partes[1]
-    if (!payloadB64) return []
+    const payloadB64 = jwt.split('.')[1]
+    if (!payloadB64) return {}
 
     const base64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/')
     const pad = (4 - (base64.length % 4)) % 4
-    const payload = JSON.parse(atob(base64.padEnd(base64.length + pad, '=')))
-    return Array.isArray(payload.authorities) ? payload.authorities : []
+    const payload: unknown = JSON.parse(atob(base64.padEnd(base64.length + pad, '=')))
+    return typeof payload === 'object' && payload !== null
+      ? (payload as Record<string, unknown>)
+      : {}
   } catch {
-    return []
+    return {}
   }
+}
+
+export function tokenValido(): boolean {
+  if (!tokenAtual) return false
+  const exp = lerPayload(tokenAtual).exp
+  // Margem de 5 segundos para não entrar com token prestes a expirar.
+  return typeof exp === 'number' && exp * 1000 > Date.now() + 5000
+}
+
+function lerAuthorities(jwt: string): string[] {
+  const authorities = lerPayload(jwt).authorities
+  return Array.isArray(authorities) ? authorities.filter((a): a is string => typeof a === 'string') : []
 }

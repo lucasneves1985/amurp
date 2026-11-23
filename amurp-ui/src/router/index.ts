@@ -1,5 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { obterToken, senhaProvisoria } from '@/auth/sessao'
+import { encerrarSessao, senhaProvisoria, tokenValido } from '@/auth/sessao'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    publica?: boolean
+  }
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,28 +14,41 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
+      meta: { publica: true },
       component: () => import('@/views/LoginView.vue'),
     },
     {
       path: '/trocar-senha',
       name: 'trocar-senha',
-      meta: { requerAuth: true },
       component: () => import('@/views/TrocarSenhaView.vue'),
     },
     {
       path: '/inicio',
       name: 'inicio',
-      meta: { requerAuth: true },
       component: () => import('@/views/InicioView.vue'),
     },
+    { path: '/:pathMatch(.*)*', redirect: '/inicio' },
   ],
 })
 
-// Guarda de interface. Não substitui a autorização do backend.
+// Guarda de interface. A autorização real é do backend.
 router.beforeEach((to) => {
-  if (!to.meta.requerAuth) return true
-  if (!obterToken()) return { name: 'login' }
-  if (senhaProvisoria() && to.name !== 'trocar-senha') return { name: 'trocar-senha' }
+  if (to.meta.publica) {
+    if (tokenValido() && to.name === 'login') {
+      return { name: senhaProvisoria() ? 'trocar-senha' : 'inicio' }
+    }
+    return true
+  }
+
+  if (!tokenValido()) {
+    encerrarSessao()
+    return { name: 'login' }
+  }
+
+  if (senhaProvisoria() && to.name !== 'trocar-senha') {
+    return { name: 'trocar-senha' }
+  }
+
   return true
 })
 
